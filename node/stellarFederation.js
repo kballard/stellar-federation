@@ -1,54 +1,54 @@
 // Simple Stellar federation server.
 
 // Configure federation
-var DOMAIN_NAME = 'example.com';
-var STELLAR_ADDRESS = 'Stellar address goes here';
-
-// Configure SSL, if you'd like to terminate it in Node. For testing
-// without your own SSL certificate, use https://ngrok.com/ to set up
-// an SSL-secured localtunnel.
-var USE_SSL = false;
-var PRIVATE_KEY = 'sslcert/server.key';
-var PUBLIC_KEY = 'sslcert/server.crt';
+var DOMAIN_NAME = 'eridi.us';
+var STELLAR_ADDRESSES = {
+  eridius: 'gBhy8LXYBWeqZwgXGvrTbfh8GSCNTmmGZu'
+};
 
 // Include dependencies
 var express = require('express');
-var https = require('https');
-var fs = require('fs');
 
 // Create the server
 var app = express();
+app.enable('trust proxy');
+
+// Define error handling
+function sendError(res, req, error) {
+  var ERROR_MESSAGES = {
+    noSuchDomain: 'Invalid Domain',
+    noSuchUser: 'No user found'
+  };
+  res.send(400, {
+    result:        'error',
+    error:         error,
+    error_message: ERROR_MESSAGES[error] || 'Invalid Request',
+    request:       req.query
+  });
+}
 
 // Accept federation requests
-app.get('/stellar/federation', function(req, res) {
+app.get('/federation', function(req, res) {
   res.set('Access-Control-Allow-Origin', '*');
-  res.send({
-    federation_json: {
-      type:                'federation_record',
-      destination:         req.query.destination,
-      domain:              DOMAIN_NAME,
-      destination_address: STELLAR_ADDRESS
-    }
-  });
+  // ignore the type=federation key, as apparently the stellar.org federation server does
+  if (req.query.domain !== DOMAIN_NAME) {
+    sendError(res, req, 'noSuchDomain');
+  } else if (!STELLAR_ADDRESSES[req.query.destination]) {
+    sendError(res, req, 'noSuchUser');
+  } else {
+    res.send({
+      federation_json: {
+        type:                'federation_record',
+        destination:         req.query.destination,
+        domain:              DOMAIN_NAME,
+        destination_address: STELLAR_ADDRESSES[req.query.destination]
+      }
+    });
+  }
 });
 
-// Accept federation URL requests
-app.get('/stellar.txt', function(req, res) {
-  res.set('Content-Type', 'text/plain');
-  res.set('Access-Control-Allow-Origin', '*');
-  res.send('[federation_url]\nhttps://' + DOMAIN_NAME + '/stellar/federation');
+// Needs to be served behind reverse proxy
+app.listen(5000, 'localhost')
+.on('listening', function() {
+  console.log('Starting server on port %d at %s', this.address().port, this.address().address);
 });
-
-if (USE_SSL) {
-  var privateKey  = fs.readFileSync(PRIVATE_KEY, 'utf8');
-  var certificate = fs.readFileSync(PUBLIC_KEY, 'utf8');
-
-  var server = https.createServer({key: privateKey, cert: certificate}, app);
-
-  console.log("Starting server on port 443");
-  server.listen(443);
-} else {
-  console.log("Starting server on port 5000")
-  // Needs to served behind reverse proxy
-  app.listen(5000);
-}

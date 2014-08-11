@@ -3,8 +3,29 @@
 // Configure federation
 var DOMAIN_NAME = 'eridi.us';
 var STELLAR_ADDRESSES = {
-  eridius: 'gBhy8LXYBWeqZwgXGvrTbfh8GSCNTmmGZu'
+  'eridi.us': {
+    'gBhy8LXYBWeqZwgXGvrTbfh8GSCNTmmGZu': ['me', 'kballard', 'eridius', 'kevin'],
+    'gh4nZy5ynCyTpoRy37aNctVYubHZFgeT3j': 'jane'
+  }
 };
+var STELLAR_USERS = (function() {
+  var result = {};
+  for (var domain in STELLAR_ADDRESSES) {
+    var domainDict = STELLAR_ADDRESSES[domain];
+    var dict = result[domain] = {};
+    for (var address in domainDict) {
+      var users = domainDict[address];
+      if (typeof users === 'string') {
+        dict[users] = address;
+      } else {
+        Array.prototype.forEach.call(users, function(user) {
+          dict[user] = address;
+        });
+      }
+    }
+  }
+  return result;
+})();
 
 // Include dependencies
 var express = require('express');
@@ -61,17 +82,19 @@ app.get('/federation', function(req, res) {
   res.locals.federationDestination = getQueryString(req, 'destination');
   res.locals.federationDomain = getQueryString(req, 'domain');
 
-  if (res.locals.federationDomain !== DOMAIN_NAME) {
+  var users = STELLAR_USERS[res.locals.federationDomain];
+  var address = users && users[res.locals.federationDestination];
+  if (!users) {
     sendError(res, req, 'noSuchDomain');
-  } else if (!STELLAR_ADDRESSES[res.locals.federationDestination]) {
+  } else if (!address) {
     sendError(res, req, 'noSuchUser');
   } else {
-    res.locals.federationResult = STELLAR_ADDRESSES[res.locals.federationDestination];
+    res.locals.federationResult = address;
     res.send({
       federation_json: {
         type:                'federation_record',
         destination:         res.locals.federationDestination,
-        domain:              DOMAIN_NAME,
+        domain:              res.locals.federationDomain,
         destination_address: res.locals.federationResult
       }
     });

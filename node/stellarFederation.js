@@ -6,6 +6,10 @@ var STELLAR_ADDRESSES = {
   'eridi.us': {
     'gBhy8LXYBWeqZwgXGvrTbfh8GSCNTmmGZu': ['me', 'kballard', 'eridius', 'kevin'],
     'gh4nZy5ynCyTpoRy37aNctVYubHZFgeT3j': 'jane'
+  },
+  'sb.org': {
+    'gBhy8LXYBWeqZwgXGvrTbfh8GSCNTmmGZu': 'kevin',
+    'gh4nZy5ynCyTpoRy37aNctVYubHZFgeT3j': 'jane'
   }
 };
 var STELLAR_USERS = (function() {
